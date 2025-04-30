@@ -567,5 +567,5 @@ class CustomTabButton: UIView {
 }
 
 #Preview {
-    ExampleViewController()
+    CardViewController()
 }
