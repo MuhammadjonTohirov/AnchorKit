@@ -8,18 +8,16 @@
 import Foundation
 import UIKit
 
-// MARK: - UIView Extension for AnchorManager
-
 @MainActor private var anchorManagerKey: UInt8 = 0
 
 extension UIView {
     @MainActor
-    public  var anchor: AnchorManager {
-        if let manager = objc_getAssociatedObject(self, &anchorManagerKey) as? AnchorManager {
+    public  var anchor: Anchor {
+        if let manager = objc_getAssociatedObject(self, &anchorManagerKey) as? Anchor {
             return manager
         }
         
-        let manager = AnchorManager(view: self)
+        let manager = Anchor(view: self)
         objc_setAssociatedObject(self, &anchorManagerKey, manager, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
         
         // Add cleanup on deinit
@@ -31,7 +29,7 @@ extension UIView {
     }
     
     fileprivate func releaseAnchorManager() {
-        if let manager = objc_getAssociatedObject(self, &anchorManagerKey) as? AnchorManager {
+        if let manager = objc_getAssociatedObject(self, &anchorManagerKey) as? Anchor {
             objc_removeAssociatedObjects(manager)
         }
         objc_setAssociatedObject(self, &anchorManagerKey, nil, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
