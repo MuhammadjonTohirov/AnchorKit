@@ -58,7 +58,6 @@ cardView.anchor
     .height(120)
     .priority(.high)
 ```
-```
 
 ### Advanced Usage
 
