@@ -162,6 +162,6 @@ class SecondViewController: UIViewController {
     }
 }
 
-#Preview {
-    MainViewController()
-}
+//#Preview {
+//    MainViewController()
+//}
