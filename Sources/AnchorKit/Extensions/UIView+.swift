@@ -1,64 +1,42 @@
-//
-//  File.swift
-//  AnchorKit
-//
-//  Created by Muhammadjon Tohirov on 30/04/25.
-//
-
-import Foundation
 import UIKit
 
 @MainActor private var anchorManagerKey: UInt8 = 0
 
+@MainActor
 extension UIView {
-    @MainActor
-    public  var anchor: Anchor {
-        if let manager = objc_getAssociatedObject(self, &anchorManagerKey) as? Anchor {
-            return manager
-        }
-        
-        let manager = Anchor(view: self)
-        objc_setAssociatedObject(self, &anchorManagerKey, manager, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
-        
-        // Add cleanup on deinit
-        self.addDeinitOperator { [weak self] in
-            self?.releaseAnchorManager()
-        }
-        
-        return manager
+  /// The persistent AnchorKit constraint manager associated with this view.
+  ///
+  /// Accessing this property sets `translatesAutoresizingMaskIntoConstraints`
+  /// to `false` the first time the manager is created.
+  public var anchor: Anchor {
+    if let manager = objc_getAssociatedObject(self, &anchorManagerKey) as? Anchor {
+      return manager
     }
-    
-    fileprivate func releaseAnchorManager() {
-        if let manager = objc_getAssociatedObject(self, &anchorManagerKey) as? Anchor {
-            objc_removeAssociatedObjects(manager)
-        }
-        objc_setAssociatedObject(self, &anchorManagerKey, nil, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
-    }
-    
-    @MainActor
-    public  func clearConstraints() {
-        self.constraints.forEach { $0.isActive = false }
-        self.releaseAnchorManager()
-    }
-}
 
-// MARK: - Memory Management Helper
+    let manager = Anchor(view: self)
+    objc_setAssociatedObject(
+      self,
+      &anchorManagerKey,
+      manager,
+      .OBJC_ASSOCIATION_RETAIN_NONATOMIC
+    )
+    return manager
+  }
 
-extension NSObject {
-    fileprivate func addDeinitOperator(_ operation: @escaping () -> Void) {
-        let deinitObject = DeinitObserver(operation: operation)
-        objc_setAssociatedObject(self, UUID().uuidString, deinitObject, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+  /// Deactivates and forgets only the constraints created through AnchorKit.
+  ///
+  /// Constraints created elsewhere, including constraints governing this
+  /// view's subviews, are left untouched.
+  public func clearConstraints() {
+    guard let manager = objc_getAssociatedObject(self, &anchorManagerKey) as? Anchor else {
+      return
     }
-}
-
-fileprivate class DeinitObserver {
-    let operation: () -> Void
-    
-    init(operation: @escaping () -> Void) {
-        self.operation = operation
-    }
-    
-    deinit {
-        operation()
-    }
+    manager.removeAllConstraints()
+    objc_setAssociatedObject(
+      self,
+      &anchorManagerKey,
+      nil,
+      .OBJC_ASSOCIATION_RETAIN_NONATOMIC
+    )
+  }
 }

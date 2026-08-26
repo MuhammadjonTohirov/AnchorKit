@@ -1,133 +1,161 @@
 # AnchorKit
 
 [![Swift](https://img.shields.io/badge/Swift-5.9-orange.svg)](https://swift.org)
-[![Platform](https://img.shields.io/badge/platforms-iOS%2014.0-lightgrey.svg)](https://developer.apple.com/swift/)
+[![Platform](https://img.shields.io/badge/platform-iOS%2014%2B-lightgrey.svg)](https://developer.apple.com/ios/)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-A lightweight, fluent Auto Layout DSL for UIKit that simplifies constraint creation and management with an elegant, chainable API.
+AnchorKit is a lightweight, fluent Auto Layout API for UIKit. It provides concise constraint declarations while retaining access to the underlying `NSLayoutConstraint` objects.
 
-## Features
+## Highlights
 
-- 🔗 **Chainable API**: Create multiple constraints in a single, readable chain
-- 🧠 **Smart Memory Management**: Automatically cleans up constraints when views are deallocated
-- 🎯 **Auto Layout Priority Support**: Built-in support for constraint priorities
-- 🔄 **Constraint Updates**: Easy constraint updates with animation support
-- 🎭 **Zero Subclassing**: Works with any UIView through extensions
+- Chainable, main-actor-isolated UIKit API
+- Safe replacement when the same managed constraint is declared again
+- Priorities applied to complete constraint groups before safe reactivation
+- `UIView` and `UILayoutGuide` targets
+- Directional edge insets, centering, relative dimensions, and aspect ratios
+- Constraint updates suitable for animation
+- Activation, deactivation, identifiers, and direct constraint handles
+- Ownership-safe cleanup that leaves non-AnchorKit constraints untouched
 
 ## Requirements
 
-- iOS 14.0+
+- iOS 14+
 - Swift 5.9+
 
 ## Installation
 
-### Swift Package Manager
-
-Add AnchorKit to your `Package.swift` file:
+Add AnchorKit with Swift Package Manager:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/yourusername/AnchorKit.git", from: "1.0.0")
+    .package(
+        url: "https://github.com/MuhammadjonTohirov/AnchorKit.git",
+        from: "2.0.0"
+    )
 ]
 ```
 
-## Usage
+Then add `AnchorKit` to the dependencies of your application target.
 
-### Basic Example
+## Basic usage
+
+Add the view to a hierarchy before activating constraints that relate it to another view or layout guide:
 
 ```swift
 import AnchorKit
 import UIKit
 
-// Simple example with a single view
-let containerView = UIView()
 let cardView = UIView()
+view.addSubview(cardView)
 
-// Add as subview
-containerView.addSubview(cardView)
-
-// Configure the card view
-cardView.backgroundColor = .systemBlue
-cardView.layer.cornerRadius = 12
-
-// Set up constraints with AnchorKit
 cardView.anchor
-    .centerX(in: containerView)
-    .centerY(in: containerView)
-    .width(200)
-    .height(120)
-    .priority(.high)
+    .fillWidth(of: view.safeAreaLayoutGuide, inset: 20)
+    .centerY(in: view.safeAreaLayoutGuide)
+    .height(min: 160)
+    .height(max: 320)
 ```
 
-### Advanced Usage
+Accessing `anchor` sets `translatesAutoresizingMaskIntoConstraints` to `false` when the manager is first created.
 
-#### Working with Priorities
+## Edges and insets
 
 ```swift
-// Set constraint priorities with enum values
-containerView.anchor
-    .fillWidth(of: view, inset: 20).priority(.high)
-    .centerY(in: view)
-    .height(min: 300).priority(.medium)
-    .top(min: view.safeAreaLayoutGuide.topAnchor, constant: 20).priority(.required)
-    .bottom(max: view.safeAreaLayoutGuide.bottomAnchor, constant: -20).priority(.required)
+contentView.anchor.fill(
+    containerView.safeAreaLayoutGuide,
+    insets: NSDirectionalEdgeInsets(
+        top: 16,
+        leading: 20,
+        bottom: 16,
+        trailing: 20
+    )
+)
+```
 
-// Or use raw float values
+Available positioning methods include equal, minimum, and maximum forms for `leading`, `trailing`, `top`, and `bottom`. AnchorKit also provides `fillWidth`, `fillHeight`, `fill`, `fillSuperview`, `centerX`, `centerY`, and `center`.
+
+## Size and proportions
+
+```swift
 imageView.anchor
-    .width(200).priority(850)
+    .width(to: containerView.widthAnchor, multiplier: 0.5)
+    .aspectRatio(16.0 / 9.0)
+
+button.anchor.size(width: 200, height: 50)
 ```
 
-#### Updating Constraints with Animation
+Width and height support equality, minimum, and maximum constants as well as relationships to another `NSLayoutDimension`.
+
+## Priorities
+
+Priority modifiers apply to every constraint created by the immediately preceding operation:
 
 ```swift
-UIView.animate(withDuration: 0.5) {
-    // Update existing constraints
-    self.containerView.anchor
-        .fillWidthUpdate(of: self.view, inset: 10)
-    
-    // Apply changes immediately
-    self.view.layoutIfNeeded()
+cardView.anchor
+    .fillWidth(of: view, inset: 20)
+    .priority(.high)
+    .height(min: 200)
+    .priority(.medium)
+```
+
+Presets are:
+
+- `.required`: `1000`
+- `.high`: `999`, useful as a controlled failure point
+- `.medium`: UIKit default-high, `750`
+- `.low`: UIKit default-low, `250`
+- `.custom(Float)`
+
+UIKit priorities can also be passed with `priority(uiKit:)`.
+
+## Updating and animation
+
+```swift
+containerView.anchor.fillWidth(of: view, inset: 20)
+
+containerView.anchor.fillWidthUpdate(of: view, inset: 8)
+
+UIView.animate(withDuration: 0.3) {
+    view.layoutIfNeeded()
 }
 ```
 
-#### Clear All Constraints
+AnchorKit includes update methods for constant sizes, direct edge constraints, centering, horizontal/vertical fills, and complete edge fills. Updating a constraint that AnchorKit does not manage triggers an assertion in debug builds.
+
+## Constraint handles and lifecycle
 
 ```swift
-// Remove all constraints and release the anchor manager
-myView.clearConstraints()
+let manager = badgeView.anchor
+    .size(width: 24, height: 24)
+    .identified("profile.badge.size")
+
+let sizeConstraints = manager.lastConstraints
+
+manager.deactivate()
+manager.activate()
+
+badgeView.clearConstraints()
 ```
 
-## Available Constraint Methods
+- `lastConstraints` contains the constraints affected by the previous operation.
+- `constraints` contains every constraint managed for the view.
+- Repeating the same managed constraint deactivates and replaces the previous instance.
+- `clearConstraints()` deactivates only constraints created through that view's AnchorKit manager.
 
-AnchorKit provides a comprehensive set of constraint creation methods:
+## Intrinsic content size
 
-### Size Constraints
-- `width(_:)`, `width(max:)`, `width(min:)`
-- `height(_:)`, `height(max:)`, `height(min:)`
+```swift
+label.anchor
+    .hugging(.defaultHigh, for: .horizontal)
+    .compressionResistance(.required, for: .vertical)
+```
 
-### Position Constraints
-- `top(to:constant:)`, `top(min:constant:)`
-- `bottom(to:constant:)`, `bottom(max:constant:)`
-- `centerX(in:)`, `centerY(in:)`
-- `centerInSuperview()`
+First- and last-baseline alignment are available through `firstBaseline(to:)` and `lastBaseline(to:)`.
+System spacing is available through `leading(systemSpacingAfter:)`, `trailing(systemSpacingBefore:)`, `top(systemSpacingBelow:)`, and `bottom(systemSpacingAbove:)`.
 
-### Filling Constraints
-- `fillWidth(of:inset:)`
+## Testing
 
-### Update Methods
-- `widthUpdate(max:)`
-- `fillWidthUpdate(of:inset:)`
-- `topUpdate(min:constant:)`
-- `bottomUpdate(max:constant:)`
-
-## Memory Management
-
-AnchorKit is designed to automatically clean up constraints when views are deallocated. No manual intervention is required to prevent memory leaks.
+The package includes iOS unit tests covering replacement, updates, grouped priorities, activation, layout guides, identifiers, and ownership-safe clearing.
 
 ## License
 
-AnchorKit is available under the MIT license. See the LICENSE file for more info.
-
-## Author
-
-Created by Muhammadjon Tohirov
+AnchorKit is available under the [MIT license](LICENSE).
